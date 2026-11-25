@@ -114,6 +114,7 @@ Pasos de configuración:
 
 ## 📂 Estructura del proyecto
 
+```text
 SistemaEstacionamiento/
 ├── src/
 │   ├── config/
@@ -132,7 +133,7 @@ SistemaEstacionamiento/
 ├── lib/
 │   └── mysql-connector-j-9.4.0.jar
 └── README.md
-
+```
 ---
 
 ## 🚀 Cómo ejecutar el proyecto
