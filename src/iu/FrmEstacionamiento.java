@@ -104,9 +104,7 @@ public class FrmEstacionamiento extends JFrame {
         panelEntrada.add(cboTipoVehiculo);
 
         JButton btnIngresar = new JButton("Ingresar");
-        btnIngresar.setBackground(new Color(22, 163, 74));
-        btnIngresar.setForeground(Color.WHITE);
-        btnIngresar.setFocusPainted(false);
+        estilizarBoton(btnIngresar, new Color(16, 185, 129), Color.WHITE); // Verde esmeralda vibrante
         btnIngresar.addActionListener(e -> registrarIngreso());
         panelEntrada.add(btnIngresar);
 
@@ -120,9 +118,7 @@ public class FrmEstacionamiento extends JFrame {
         panelSalida.add(txtPlacaSalida);
 
         JButton btnSalida = new JButton("Cobrar y Liberar");
-        btnSalida.setBackground(new Color(220, 38, 38));
-        btnSalida.setForeground(Color.WHITE);
-        btnSalida.setFocusPainted(false);
+        estilizarBoton(btnSalida, new Color(239, 68, 68), Color.WHITE); // Rojo coral llamativo
         btnSalida.addActionListener(e -> registrarSalida());
         panelSalida.add(btnSalida);
 
@@ -312,5 +308,17 @@ public class FrmEstacionamiento extends JFrame {
         // 3. Actualizar caja total recaudada
         double total = servicio.calcularTotalRecaudado();
         lblTotalRecaudado.setText(String.format("Total recaudado: S/ %.2f", total));
+    }
+    
+    private void estilizarBoton(JButton boton, Color colorFondo, Color colorTexto) {
+        boton.setBackground(colorFondo);
+        boton.setForeground(colorTexto);
+        boton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        boton.setOpaque(true);
+        boton.setContentAreaFilled(true);
+        boton.setBorderPainted(false);
+        boton.setFocusPainted(false);
+        boton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        boton.setBorder(BorderFactory.createEmptyBorder(7, 14, 7, 14));
     }
 }
