@@ -79,4 +79,17 @@ public class EstacionamientoService {
     public List<Ticket> getHistorialTickets() {
         return historialTickets;
     }
+    
+    public List<Ticket> getTicketsCobrados() {
+        return historialTickets.stream()
+                .filter(t -> t.getHoraSalida() != null)
+                .toList();
+    }
+
+    public double calcularTotalRecaudado() {
+        return getTicketsCobrados().stream()
+                .mapToDouble(Ticket::getMontoTotal)
+                .sum();
+    }
+    
 }
