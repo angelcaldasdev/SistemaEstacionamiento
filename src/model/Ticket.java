@@ -11,11 +11,23 @@ public class Ticket {
     private LocalDateTime horaSalida;
     private double montoTotal;
 
+    // Constructor para un ticket nuevo al ingresar un vehículo
     public Ticket(String codigo, int numeroEspacio, Vehiculo vehiculo, LocalDateTime horaEntrada) {
         this.codigo = codigo;
         this.numeroEspacio = numeroEspacio;
         this.vehiculo = vehiculo;
         this.horaEntrada = horaEntrada;
+    }
+
+    // Constructor para reconstruir un ticket desde MySQL (activo o cobrado)
+    public Ticket(String codigo, int numeroEspacio, Vehiculo vehiculo,
+                  LocalDateTime horaEntrada, LocalDateTime horaSalida, double montoTotal) {
+        this.codigo = codigo;
+        this.numeroEspacio = numeroEspacio;
+        this.vehiculo = vehiculo;
+        this.horaEntrada = horaEntrada;
+        this.horaSalida = horaSalida;
+        this.montoTotal = montoTotal;
     }
 
     public long calcularHorasFacturables() {
