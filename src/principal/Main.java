@@ -1,4 +1,4 @@
-package Princiapal;
+package principal;
 
 
 public class Main {
