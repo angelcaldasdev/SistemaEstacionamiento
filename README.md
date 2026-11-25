@@ -114,16 +114,24 @@ Pasos de configuración:
 
 ## 📂 Estructura del proyecto
 
-- `src/config/ConexionMySQL.java`
-- `src/model/EspacioEstacionamiento.java`
-- `src/model/Ticket.java`
-- `src/model/TipoVehiculo.java`
-- `src/model/Vehiculo.java`
-- `src/service/EstacionamientoService.java`
-- `src/ui/FrmEstacionamiento.java`
-- `src/principal/Main.java`
-- `lib/mysql-connector-j-9.4.0.jar`
-- `README.md`
+SistemaEstacionamiento/
+├── src/
+│   ├── config/
+│   │   └── ConexionMySQL.java
+│   ├── model/
+│   │   ├── EspacioEstacionamiento.java
+│   │   ├── Ticket.java
+│   │   ├── TipoVehiculo.java
+│   │   └── Vehiculo.java
+│   ├── service/
+│   │   └── EstacionamientoService.java
+│   ├── ui/
+│   │   └── FrmEstacionamiento.java
+│   └── principal/
+│       └── Main.java
+├── lib/
+│   └── mysql-connector-j-9.4.0.jar
+└── README.md
 
 ---
 
