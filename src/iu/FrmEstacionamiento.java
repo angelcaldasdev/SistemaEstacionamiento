@@ -7,6 +7,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -18,8 +19,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.RowFilter;
 import javax.swing.SwingConstants;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import model.EspacioEstacionamiento;
 import model.Ticket;
 import model.TipoVehiculo;
@@ -35,6 +40,8 @@ public class FrmEstacionamiento extends JFrame {
     private JTextField txtPlacaSalida;
     private JLabel lblDisponibilidad;
     private JLabel lblTotalRecaudado;
+    private JTextField txtBuscarPlaca;
+    private TableRowSorter<DefaultTableModel> sorterEspacios;
 
     private JTable tablaEspacios;
     private DefaultTableModel modeloEspacios;
@@ -50,13 +57,13 @@ public class FrmEstacionamiento extends JFrame {
 
     private void inicializarComponentes() {
         setTitle("Sistema de Gestión de Estacionamiento");
-        setSize(900, 650);
+        setSize(920, 660);
         setMinimumSize(new Dimension(780, 560));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // --- PANEL SUPERIOR: TÍTULO, DISPONIBILIDAD Y CAJA ---
+        // --- PANEL SUPERIOR: TÍTULO, DISPONIBILIDAD, CAJA Y RESUMEN ---
         JPanel panelSuperior = new JPanel(new BorderLayout(15, 0));
         panelSuperior.setBackground(new Color(30, 41, 59));
         panelSuperior.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
@@ -65,7 +72,7 @@ public class FrmEstacionamiento extends JFrame {
         lblTitulo.setForeground(Color.WHITE);
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
 
-        JPanel panelMetricas = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 0));
+        JPanel panelMetricas = new JPanel(new FlowLayout(FlowLayout.RIGHT, 16, 0));
         panelMetricas.setOpaque(false);
 
         lblDisponibilidad = new JLabel("Espacios libres: 0 / 0", SwingConstants.RIGHT);
@@ -76,8 +83,13 @@ public class FrmEstacionamiento extends JFrame {
         lblTotalRecaudado.setForeground(new Color(250, 204, 21));
         lblTotalRecaudado.setFont(new Font("Segoe UI", Font.BOLD, 14));
 
+        JButton btnResumenCaja = new JButton("Resumen de Caja");
+        estilizarBoton(btnResumenCaja, new Color(59, 130, 246), Color.WHITE);
+        btnResumenCaja.addActionListener(e -> mostrarResumenCaja());
+
         panelMetricas.add(lblDisponibilidad);
         panelMetricas.add(lblTotalRecaudado);
+        panelMetricas.add(btnResumenCaja);
 
         panelSuperior.add(lblTitulo, BorderLayout.WEST);
         panelSuperior.add(panelMetricas, BorderLayout.EAST);
@@ -96,7 +108,7 @@ public class FrmEstacionamiento extends JFrame {
 
         panelEntrada.add(new JLabel("Placa:"));
         txtPlacaEntrada = new JTextField(8);
-        txtPlacaEntrada.addActionListener(e -> registrarIngreso()); // Enter también registra ingreso
+        txtPlacaEntrada.addActionListener(e -> registrarIngreso());
         panelEntrada.add(txtPlacaEntrada);
 
         panelEntrada.add(new JLabel("Tipo:"));
@@ -104,7 +116,7 @@ public class FrmEstacionamiento extends JFrame {
         panelEntrada.add(cboTipoVehiculo);
 
         JButton btnIngresar = new JButton("Ingresar");
-        estilizarBoton(btnIngresar, new Color(16, 185, 129), Color.WHITE); // Verde esmeralda vibrante
+        estilizarBoton(btnIngresar, new Color(16, 185, 129), Color.WHITE);
         btnIngresar.addActionListener(e -> registrarIngreso());
         panelEntrada.add(btnIngresar);
 
@@ -114,11 +126,11 @@ public class FrmEstacionamiento extends JFrame {
 
         panelSalida.add(new JLabel("Placa:"));
         txtPlacaSalida = new JTextField(10);
-        txtPlacaSalida.addActionListener(e -> registrarSalida()); // Enter también procesa salida
+        txtPlacaSalida.addActionListener(e -> registrarSalida());
         panelSalida.add(txtPlacaSalida);
 
         JButton btnSalida = new JButton("Cobrar y Liberar");
-        estilizarBoton(btnSalida, new Color(239, 68, 68), Color.WHITE); // Rojo coral llamativo
+        estilizarBoton(btnSalida, new Color(239, 68, 68), Color.WHITE);
         btnSalida.addActionListener(e -> registrarSalida());
         panelSalida.add(btnSalida);
 
@@ -126,7 +138,7 @@ public class FrmEstacionamiento extends JFrame {
         panelAcciones.add(panelSalida);
         panelCentral.add(panelAcciones, BorderLayout.NORTH);
 
-        // --- TABLA 1: ESPACIOS ACTUALES ---
+        // --- TABLA 1: ESPACIOS ACTUALES + FILTRO POR PLACA ---
         String[] columnasEspacios = {
             "Espacio N°", "Estado", "Ticket", "Placa", "Tipo", "Tarifa/Hora", "Hora Ingreso"
         };
@@ -141,12 +153,62 @@ public class FrmEstacionamiento extends JFrame {
         tablaEspacios.setRowHeight(24);
         tablaEspacios.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
 
-        // Autocompletar placa de salida al seleccionar una fila ocupada
+        sorterEspacios = new TableRowSorter<>(modeloEspacios);
+        tablaEspacios.setRowSorter(sorterEspacios);
+
+        txtBuscarPlaca = new JTextField(12);
+        txtBuscarPlaca.setToolTipText("Filtrar espacios por placa...");
+        txtBuscarPlaca.getDocument().addDocumentListener(new DocumentListener() {
+            private void aplicarFiltro() {
+                String texto = txtBuscarPlaca.getText().trim();
+                if (texto.isEmpty()) {
+                    sorterEspacios.setRowFilter(null);
+                } else {
+                    sorterEspacios.setRowFilter(
+                            RowFilter.regexFilter("(?i)" + Pattern.quote(texto), 3)
+                    );
+                }
+            }
+
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                aplicarFiltro();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                aplicarFiltro();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                aplicarFiltro();
+            }
+        });
+
+        JButton btnLimpiarFiltro = new JButton("Limpiar");
+        btnLimpiarFiltro.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        btnLimpiarFiltro.addActionListener(e -> {
+            txtBuscarPlaca.setText("");
+            sorterEspacios.setRowFilter(null);
+        });
+
+        JPanel cabeceraEspacios = new JPanel(new BorderLayout(8, 0));
+        cabeceraEspacios.add(new JLabel("Estado de Espacios"), BorderLayout.WEST);
+
+        JPanel panelFiltro = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        panelFiltro.add(new JLabel("Buscar placa:"));
+        panelFiltro.add(txtBuscarPlaca);
+        panelFiltro.add(btnLimpiarFiltro);
+        cabeceraEspacios.add(panelFiltro, BorderLayout.EAST);
+
+        // Autocompletar placa de salida al seleccionar una fila ocupada (considerando filtro)
         tablaEspacios.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                int fila = tablaEspacios.getSelectedRow();
-                if (fila >= 0) {
-                    Object valorPlaca = modeloEspacios.getValueAt(fila, 3);
+                int filaVista = tablaEspacios.getSelectedRow();
+                if (filaVista >= 0) {
+                    int filaModelo = tablaEspacios.convertRowIndexToModel(filaVista);
+                    Object valorPlaca = modeloEspacios.getValueAt(filaModelo, 3);
                     if (valorPlaca != null && !valorPlaca.toString().equals("-")) {
                         txtPlacaSalida.setText(valorPlaca.toString());
                     }
@@ -155,7 +217,7 @@ public class FrmEstacionamiento extends JFrame {
         });
 
         JPanel panelTablaEspacios = new JPanel(new BorderLayout(0, 4));
-        panelTablaEspacios.add(new JLabel("Estado de Espacios"), BorderLayout.NORTH);
+        panelTablaEspacios.add(cabeceraEspacios, BorderLayout.NORTH);
         panelTablaEspacios.add(new JScrollPane(tablaEspacios), BorderLayout.CENTER);
 
         // --- TABLA 2: HISTORIAL DE TICKETS COBRADOS ---
@@ -189,6 +251,15 @@ public class FrmEstacionamiento extends JFrame {
 
         panelCentral.add(divisorTablas, BorderLayout.CENTER);
         add(panelCentral, BorderLayout.CENTER);
+    }
+
+    private void mostrarResumenCaja() {
+        JOptionPane.showMessageDialog(
+                this,
+                servicio.generarResumenCaja(),
+                "Resumen de Caja",
+                JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
     private void registrarIngreso() {
@@ -309,7 +380,7 @@ public class FrmEstacionamiento extends JFrame {
         double total = servicio.calcularTotalRecaudado();
         lblTotalRecaudado.setText(String.format("Total recaudado: S/ %.2f", total));
     }
-    
+
     private void estilizarBoton(JButton boton, Color colorFondo, Color colorTexto) {
         boton.setBackground(colorFondo);
         boton.setForeground(colorTexto);

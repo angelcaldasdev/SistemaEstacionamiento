@@ -191,4 +191,67 @@ public class EstacionamientoService {
     public List<Ticket> getHistorialTickets() {
         return historialTickets;
     }
+
+    public String generarResumenCaja() {
+        int totalActivos = 0;
+        int totalCobrados = 0;
+        double recaudadoGeneral = 0.0;
+
+        int cobradosAuto = 0;
+        int cobradosMoto = 0;
+        int cobradosCamioneta = 0;
+
+        double montoAuto = 0.0;
+        double montoMoto = 0.0;
+        double montoCamioneta = 0.0;
+
+        for (EspacioEstacionamiento esp : espacios) {
+            if (esp.isOcupado()) {
+                totalActivos++;
+            }
+        }
+
+        for (Ticket t : getTicketsCobrados()) {
+            totalCobrados++;
+            double monto = t.getMontoTotal();
+            recaudadoGeneral += monto;
+
+            TipoVehiculo tipo = t.getVehiculo().getTipo();
+            switch (tipo) {
+                case AUTO -> {
+                    cobradosAuto++;
+                    montoAuto += monto;
+                }
+                case MOTO -> {
+                    cobradosMoto++;
+                    montoMoto += monto;
+                }
+                case CAMIONETA -> {
+                    cobradosCamioneta++;
+                    montoCamioneta += monto;
+                }
+            }
+        }
+
+        return String.format(
+                "RESUMEN DE CAJA - ESTACIONAMIENTO%n"
+                + "----------------------------------------%n"
+                + "Espacios ocupados actualmente: %d / %d%n"
+                + "Espacios libres actualmente:   %d / %d%n"
+                + "Tickets cobrados en historial: %d%n%n"
+                + "Desglose por tipo de vehículo (cobrado):%n"
+                + "• Auto:      %d ticket(s)  ->  S/ %.2f%n"
+                + "• Moto:      %d ticket(s)  ->  S/ %.2f%n"
+                + "• Camioneta: %d ticket(s)  ->  S/ %.2f%n"
+                + "----------------------------------------%n"
+                + "TOTAL RECAUDADO: S/ %.2f",
+                totalActivos, espacios.size(),
+                espacios.size() - totalActivos, espacios.size(),
+                totalCobrados,
+                cobradosAuto, montoAuto,
+                cobradosMoto, montoMoto,
+                cobradosCamioneta, montoCamioneta,
+                recaudadoGeneral
+        );
+    }
 }
