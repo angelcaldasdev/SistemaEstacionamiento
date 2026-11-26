@@ -6,11 +6,13 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -83,12 +85,17 @@ public class FrmEstacionamiento extends JFrame {
         lblTotalRecaudado.setForeground(new Color(250, 204, 21));
         lblTotalRecaudado.setFont(new Font("Segoe UI", Font.BOLD, 14));
 
+        JButton btnExportarCsv = new JButton("Exportar CSV");
+        estilizarBoton(btnExportarCsv, new Color(16, 185, 129), Color.WHITE);
+        btnExportarCsv.addActionListener(e -> exportarCsv());
+
         JButton btnResumenCaja = new JButton("Resumen de Caja");
         estilizarBoton(btnResumenCaja, new Color(59, 130, 246), Color.WHITE);
         btnResumenCaja.addActionListener(e -> mostrarResumenCaja());
 
         panelMetricas.add(lblDisponibilidad);
         panelMetricas.add(lblTotalRecaudado);
+        panelMetricas.add(btnExportarCsv);
         panelMetricas.add(btnResumenCaja);
 
         panelSuperior.add(lblTitulo, BorderLayout.WEST);
@@ -298,6 +305,14 @@ public class FrmEstacionamiento extends JFrame {
             txtPlacaSalida.setText("");
             actualizarVista();
 
+            String detalleComprobante = "";
+            try {
+                Path rutaComprobante = servicio.guardarComprobanteTxt(ticket);
+                detalleComprobante = "\nComprobante guardado: " + rutaComprobante.getFileName();
+            } catch (Exception ioEx) {
+                detalleComprobante = "\n(Aviso: no se pudo guardar el TXT: " + ioEx.getMessage() + ")";
+            }
+
             String resumen = String.format(
                     "COMPROBANTE DE SALIDA\n"
                     + "-----------------------------\n"
@@ -306,14 +321,15 @@ public class FrmEstacionamiento extends JFrame {
                     + "Entrada: %s\n"
                     + "Salida: %s\n"
                     + "Horas cobradas: %d\n"
-                    + "TOTAL A PAGAR: S/ %.2f",
+                    + "TOTAL A PAGAR: S/ %.2f%s",
                     ticket.getCodigo(),
                     ticket.getVehiculo().getPlaca(),
                     ticket.getVehiculo().getTipo().getNombre(),
                     ticket.getHoraEntrada().format(formatoHora),
                     ticket.getHoraSalida().format(formatoHora),
                     ticket.calcularHorasFacturables(),
-                    ticket.getMontoTotal()
+                    ticket.getMontoTotal(),
+                    detalleComprobante
             );
 
             JOptionPane.showMessageDialog(
@@ -391,5 +407,35 @@ public class FrmEstacionamiento extends JFrame {
         boton.setFocusPainted(false);
         boton.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         boton.setBorder(BorderFactory.createEmptyBorder(7, 14, 7, 14));
+    }
+
+    private void exportarCsv() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Guardar reporte de tickets cobrados (CSV)");
+        chooser.setSelectedFile(new java.io.File("reporte_estacionamiento.csv"));
+
+        int opcion = chooser.showSaveDialog(this);
+        if (opcion == JFileChooser.APPROVE_OPTION) {
+            try {
+                Path destino = chooser.getSelectedFile().toPath();
+                if (!destino.toString().toLowerCase().endsWith(".csv")) {
+                    destino = Path.of(destino.toString() + ".csv");
+                }
+                servicio.exportarHistorialCsv(destino);
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Reporte exportado exitosamente en:\n" + destino.toAbsolutePath(),
+                        "Exportación Completada",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Error al exportar CSV: " + ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        }
     }
 }

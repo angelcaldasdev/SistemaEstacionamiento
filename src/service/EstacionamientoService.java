@@ -1,14 +1,21 @@
 package service;
 
 import config.ConexionMySQL;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import model.EspacioEstacionamiento;
 import model.Ticket;
@@ -16,6 +23,9 @@ import model.TipoVehiculo;
 import model.Vehiculo;
 
 public class EstacionamientoService {
+
+    private static final DateTimeFormatter FORMATO_FECHA_HORA =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private final List<EspacioEstacionamiento> espacios = new ArrayList<>();
     private final List<Ticket> historialTickets = new ArrayList<>();
@@ -253,5 +263,74 @@ public class EstacionamientoService {
                 cobradosCamioneta, montoCamioneta,
                 recaudadoGeneral
         );
+    }
+
+    public Path guardarComprobanteTxt(Ticket ticket) throws IOException {
+        Path carpeta = Paths.get("comprobantes");
+        Files.createDirectories(carpeta);
+
+        String salidaFormateada = ticket.getHoraSalida() != null
+                ? ticket.getHoraSalida().format(FORMATO_FECHA_HORA)
+                : "-";
+
+        String contenido = String.format(
+                "========================================%n"
+                + "       COMPROBANTE DE ESTACIONAMIENTO%n"
+                + "========================================%n"
+                + "Ticket:         %s%n"
+                + "Espacio N°:     %d%n"
+                + "Placa:          %s%n"
+                + "Tipo Vehículo:  %s%n"
+                + "Tarifa/Hora:    S/ %.2f%n"
+                + "Hora Entrada:   %s%n"
+                + "Hora Salida:    %s%n"
+                + "Horas Cobradas: %d%n"
+                + "----------------------------------------%n"
+                + "TOTAL PAGADO:   S/ %.2f%n"
+                + "========================================%n",
+                ticket.getCodigo(),
+                ticket.getNumeroEspacio(),
+                ticket.getVehiculo().getPlaca(),
+                ticket.getVehiculo().getTipo().getNombre(),
+                ticket.getVehiculo().getTipo().getTarifaPorHora(),
+                ticket.getHoraEntrada().format(FORMATO_FECHA_HORA),
+                salidaFormateada,
+                ticket.calcularHorasFacturables(),
+                ticket.getMontoTotal()
+        );
+
+        Path archivo = carpeta.resolve(ticket.getCodigo() + ".txt");
+        Files.writeString(archivo, contenido, StandardCharsets.UTF_8);
+        return archivo;
+    }
+
+    public Path exportarHistorialCsv(Path archivoDestino) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Codigo,Espacio,Placa,Tipo,Hora Entrada,Hora Salida,Horas,Monto (S/)\n");
+
+        for (Ticket t : getTicketsCobrados()) {
+            String salidaStr = t.getHoraSalida() != null ? t.getHoraSalida().format(FORMATO_FECHA_HORA) : "";
+            sb.append(escaparCsv(t.getCodigo())).append(",")
+              .append(t.getNumeroEspacio()).append(",")
+              .append(escaparCsv(t.getVehiculo().getPlaca())).append(",")
+              .append(escaparCsv(t.getVehiculo().getTipo().getNombre())).append(",")
+              .append(escaparCsv(t.getHoraEntrada().format(FORMATO_FECHA_HORA))).append(",")
+              .append(escaparCsv(salidaStr)).append(",")
+              .append(t.calcularHorasFacturables()).append(",")
+              .append(String.format(Locale.US, "%.2f", t.getMontoTotal())).append("\n");
+        }
+
+        sb.append("\n,,,,Total Recaudado (S/),,,")
+          .append(String.format(Locale.US, "%.2f", calcularTotalRecaudado())).append("\n");
+
+        Files.writeString(archivoDestino, sb.toString(), StandardCharsets.UTF_8);
+        return archivoDestino;
+    }
+
+    private String escaparCsv(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        return "\"" + valor.replace("\"", "\"\"") + "\"";
     }
 }
